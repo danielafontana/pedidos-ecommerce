@@ -34,10 +34,11 @@ jobs:
       - name: Run unit tests with pytest and coverage
         run: |
           pytest tests/unit/ -v --tb=short \
-            --cov=order_service \
             --cov=order_service.domain \
             --cov-report=xml \
-            --cov-report=term-missing
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            -m "not integration"
 
       - name: Upload coverage report
         if: matrix.python-version == '3.12'

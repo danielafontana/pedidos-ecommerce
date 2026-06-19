@@ -1,0 +1,30 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: ["main", "master", "develop"]
+  push:
+    branches: ["main", "master", "develop"]
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: order-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: ./.github/actions/setup-python-app
+        with:
+          python-version: "3.12"
+          install-deps: dev
+
+      - name: Run integration tests with Testcontainers
+        run: pytest tests/integration -v --tb=short --no-cov -m integration
