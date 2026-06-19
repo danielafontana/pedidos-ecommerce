@@ -1,0 +1,33 @@
+asyncapi: 3.0.0
+info:
+  title: Order Events
+  version: 1.0.0
+channels:
+  order-events:
+    address: order-events
+    messages:
+      OrderConfirmed:
+        payload:
+          type: object
+          properties:
+            eventType: { type: string, const: OrderConfirmed }
+            payload:
+              type: object
+              properties:
+                orderId: { type: string }
+                customerId: { type: string }
+      PaymentApproved:
+        payload:
+          type: object
+          properties:
+            eventType: { type: string, const: PaymentApproved }
+      PaymentRejected:
+        payload:
+          type: object
+          properties:
+            eventType: { type: string, const: PaymentRejected }
+      OrderCancelled:
+        payload:
+          type: object
+          properties:
+            eventType: { type: string, const: OrderCancelled }
