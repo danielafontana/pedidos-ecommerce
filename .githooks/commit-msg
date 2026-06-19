@@ -1,0 +1,7 @@
+#!/bin/sh
+# Remove linhas Co-authored-by automaticas de mensagens de commit
+commit_msg_file="$1"
+
+grep -viE '^Co-authored-by:' \
+  "$commit_msg_file" > "${commit_msg_file}.tmp" \
+  && mv "${commit_msg_file}.tmp" "$commit_msg_file"
