@@ -2,29 +2,34 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
-from prometheus_client import make_asgi_app
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from order_service.domain.exceptions.domain_errors import DomainError
-from order_service.infrastructure.persistence.database import init_db
-from order_service.infrastructure.security.jwt import create_dev_token
+from order_service.infrastructure.observability import (
+    configure_logging,
+    configure_tracing,
+    create_metrics_app,
+)
 from order_service.presentation.api.v1 import orders, payments
+from order_service.presentation.auth import create_dev_token, limiter
+from order_service.presentation.bootstrap import startup
 from order_service.presentation.middleware.http_middleware import (
     CorrelationIdMiddleware,
     SecurityHeadersMiddleware,
 )
 from order_service.presentation.problem_details import (
     domain_error_handler,
+    rate_limit_handler,
     validation_error_handler,
 )
 
-limiter = Limiter(key_func=get_remote_address)
+configure_logging()
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await init_db()
+    await startup()
     yield
 
 
@@ -37,15 +42,19 @@ app = FastAPI(
 )
 
 app.state.limiter = limiter
-app.add_middleware(CorrelationIdMiddleware)
-app.add_middleware(SecurityHeadersMiddleware)
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 app.add_exception_handler(DomainError, domain_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(orders.router, prefix="/api/v1")
 app.include_router(payments.router, prefix="/api/v1")
 
-app.mount("/metrics", make_asgi_app())
+app.mount("/metrics", create_metrics_app())
+
+configure_tracing(app)
 
 
 @app.get("/health")

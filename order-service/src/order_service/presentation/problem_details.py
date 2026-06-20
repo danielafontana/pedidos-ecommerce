@@ -1,6 +1,7 @@
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from order_service.domain.exceptions.domain_errors import DomainError
 
@@ -31,7 +32,9 @@ async def domain_error_handler(_: Request, exc: DomainError) -> JSONResponse:
     )
 
 
-async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_error_handler(
+    _: Request, exc: RequestValidationError
+) -> JSONResponse:
     return JSONResponse(
         status_code=422,
         content={
@@ -39,6 +42,21 @@ async def validation_error_handler(_: Request, exc: RequestValidationError) -> J
             "title": "Validation Error",
             "status": 422,
             "detail": str(exc.errors()),
+        },
+        media_type="application/problem+json",
+    )
+
+
+async def rate_limit_handler(
+    _: Request, exc: RateLimitExceeded
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "type": "https://api.orders.example/problems/rate-limit-exceeded",
+            "title": "Rate Limit Exceeded",
+            "status": 429,
+            "detail": str(exc.detail),
         },
         media_type="application/problem+json",
     )

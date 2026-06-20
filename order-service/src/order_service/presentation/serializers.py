@@ -12,7 +12,9 @@ def order_to_dict(order: Order, payments: list[Payment] | None = None) -> dict:
                 "id": str(item.id),
                 "product_id": item.product_id,
                 "quantity": item.quantity,
-                "unit_price": str(item.unit_price.amount) if item.unit_price else None,
+                "unit_price": str(item.unit_price.amount)
+                if item.unit_price
+                else None,
             }
             for item in order.items
         ],
