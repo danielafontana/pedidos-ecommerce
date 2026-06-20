@@ -11,6 +11,7 @@ import pytest
 import yaml
 from jsonschema import RefResolver
 
+from order_service.testing.openapi_schema import openapi_schema_for_jsonschema
 from order_service.testing.paths import find_repo_root
 
 REPO_ROOT = find_repo_root(Path(__file__))
@@ -59,7 +60,7 @@ def test_example_matches_openapi_schema(
 ) -> None:
     example_path = EXAMPLES_DIR / filename
     payload = json.loads(example_path.read_text(encoding="utf-8"))
-    schema = resolver.resolve(schema_ref)[1]
+    schema = openapi_schema_for_jsonschema(resolver.resolve(schema_ref)[1])
     jsonschema.validate(payload, schema, resolver=resolver)
 
 

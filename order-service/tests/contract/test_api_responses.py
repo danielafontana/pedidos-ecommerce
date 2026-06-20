@@ -11,6 +11,7 @@ import yaml
 from httpx import AsyncClient
 from jsonschema import RefResolver
 
+from order_service.testing.openapi_schema import openapi_schema_for_jsonschema
 from order_service.testing.paths import find_repo_root
 
 pytestmark = pytest.mark.contract
@@ -36,7 +37,7 @@ def resolver(openapi_spec: dict) -> RefResolver:
 def _validate(
     payload: dict, schema_ref: str, openapi_spec: dict, resolver: RefResolver
 ) -> None:
-    schema = resolver.resolve(schema_ref)[1]
+    schema = openapi_schema_for_jsonschema(resolver.resolve(schema_ref)[1])
     jsonschema.validate(payload, schema, resolver=resolver)
 
 
