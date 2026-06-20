@@ -1,0 +1,6 @@
+{
+  "type": "https://api.orders.example/problems/invalid_order_state",
+  "title": "Invalid Order State",
+  "status": 409,
+  "detail": "Order cannot be confirmed"
+}
