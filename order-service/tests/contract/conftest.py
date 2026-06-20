@@ -15,8 +15,9 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.postgres import PostgresContainer
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-WIREMOCK_MAPPINGS = REPO_ROOT / "wiremock" / "mappings"
+from tests.support.paths import wiremock_mappings_dir
+
+WIREMOCK_MAPPINGS = wiremock_mappings_dir(Path(__file__))
 
 
 def _reload_infrastructure_modules() -> None:
@@ -47,6 +48,9 @@ def docker_available() -> None:
 
 @pytest.fixture(scope="session")
 def integration_env(docker_available: None) -> Iterator[dict[str, str]]:
+    if not WIREMOCK_MAPPINGS.is_dir():
+        pytest.fail(f"WireMock mappings not found at {WIREMOCK_MAPPINGS}")
+
     postgres = PostgresContainer("postgres:16-alpine", driver="asyncpg")
     postgres.start()
 
@@ -80,7 +84,7 @@ def integration_env(docker_available: None) -> Iterator[dict[str, str]]:
     postgres.stop()
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session", autouse=False)
 def stub_event_publisher(integration_env: dict[str, str]) -> Iterator[None]:
     import order_service.infrastructure.messaging.sqs_publisher as sqs_mod
 
@@ -92,24 +96,18 @@ def stub_event_publisher(integration_env: dict[str, str]) -> Iterator[None]:
         yield
 
 
-@pytest.fixture(autouse=True)
-async def reset_database(
+@pytest.fixture
+async def contract_client(
     integration_env: dict[str, str],
-) -> AsyncIterator[None]:
+    stub_event_publisher: None,
+) -> AsyncIterator[AsyncClient]:
     from order_service.infrastructure.persistence.database import engine
     from order_service.infrastructure.persistence.models import Base
+    from order_service.presentation.main import app
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    yield
-
-
-@pytest.fixture
-async def contract_client(
-    integration_env: dict[str, str],
-) -> AsyncIterator[AsyncClient]:
-    from order_service.presentation.main import app
 
     transport = ASGITransport(app=app)
     async with AsyncClient(

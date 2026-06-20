@@ -11,10 +11,11 @@ import yaml
 from httpx import AsyncClient
 from jsonschema import RefResolver
 
-pytestmark = pytest.mark.contract
-pytest_plugins = ["docker_fixtures"]
+from tests.support.paths import find_repo_root
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+pytestmark = pytest.mark.contract
+
+REPO_ROOT = find_repo_root(Path(__file__))
 OPENAPI_PATH = REPO_ROOT / "specs" / "openapi" / "order-service-v1.yaml"
 
 

@@ -13,8 +13,9 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.postgres import PostgresContainer
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-WIREMOCK_MAPPINGS = REPO_ROOT / "wiremock" / "mappings"
+from tests.support.paths import wiremock_mappings_dir
+
+WIREMOCK_MAPPINGS = wiremock_mappings_dir(Path(__file__))
 
 
 def _reload_infrastructure_modules() -> None:
@@ -45,6 +46,9 @@ def docker_available() -> None:
 
 @pytest.fixture(scope="session")
 def integration_env(docker_available: None) -> Iterator[dict[str, str]]:
+    if not WIREMOCK_MAPPINGS.is_dir():
+        pytest.fail(f"WireMock mappings not found at {WIREMOCK_MAPPINGS}")
+
     postgres = PostgresContainer("postgres:16-alpine", driver="asyncpg")
     postgres.start()
 
