@@ -1,0 +1,33 @@
+name: Mutation Tests
+
+on:
+  pull_request:
+    branches: ["main", "master", "develop"]
+  push:
+    branches: ["main", "master", "develop"]
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  mutation:
+    name: Mutation Tests (domain)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: order-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: ./.github/actions/setup-python-app
+        with:
+          python-version: "3.12"
+          install-deps: dev
+
+      - name: Run mutmut on domain layer
+        run: |
+          mutmut run
+          mutmut results

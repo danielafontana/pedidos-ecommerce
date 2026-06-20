@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/products/prod-1"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "id": "prod-1",
+      "name": "Product One",
+      "price": 99.90,
+      "available": true
+    }
+  }
+}

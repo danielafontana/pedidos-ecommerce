@@ -1,0 +1,22 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/payments",
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": {
+          "expression": "$.orderId",
+          "matches": ".*unstable.*"
+        }
+      }
+    ]
+  },
+  "response": {
+    "status": 503,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "error": "Gateway unavailable"
+    }
+  },
+  "priority": 1
+}

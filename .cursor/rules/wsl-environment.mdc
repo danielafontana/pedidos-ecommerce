@@ -1,0 +1,22 @@
+---
+description: Ambiente de desenvolvimento WSL — preferir e sempre mostrar comandos WSL
+alwaysApply: true
+---
+
+# Ambiente WSL
+
+O usuário desenvolve com **WSL** (Windows Subsystem for Linux). Ao sugerir ou executar comandos de terminal:
+
+1. **Preferir WSL** como ambiente padrão para instalação de CLIs, Git, npm, Python/Poetry, Docker e scripts shell.
+2. **Sempre incluir a variante WSL** quando mostrar comandos — mesmo que também mostre PowerShell/CMD no Windows.
+3. **Caminhos no WSL** para este repositório:
+   - Windows: `c:\Users\dani_\Documents\Projetos\pedidos-ecommerce`
+   - WSL: `/mnt/c/Users/dani_/Documents/Projetos/pedidos-ecommerce`
+4. **Entrar no WSL** antes de rodar comandos Linux:
+   ```bash
+   wsl
+   cd /mnt/c/Users/dani_/Documents/Projetos/pedidos-ecommerce
+   ```
+   Ou em uma linha a partir do PowerShell: `wsl -e bash -lc 'cd /mnt/c/Users/dani_/Documents/Projetos/pedidos-ecommerce && ...'`
+5. **Python do projeto** (`order-service`): usar Poetry dentro do WSL, não o Python nativo do Windows, salvo se o usuário pedir explicitamente o contrário.
+6. **Exceção — Git commits**: commits devem ser feitos **sempre pelo Git do Windows** (CMD ou PowerShell), **nunca via WSL** (`wsl git ...`). Ver regra `git-commits.mdc`.

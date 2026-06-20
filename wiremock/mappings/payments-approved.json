@@ -1,0 +1,23 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/payments",
+    "bodyPatterns": [
+      {
+        "matchesJsonPath": {
+          "expression": "$.orderId",
+          "matches": ".*approved.*"
+        }
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "transactionId": "txn-approved-001",
+      "status": "APPROVED"
+    }
+  },
+  "priority": 1
+}

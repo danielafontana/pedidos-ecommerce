@@ -1,0 +1,13 @@
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "customer_id": "1",
+  "status": "DRAFT",
+  "items": [],
+  "total_amount": "0.00",
+  "currency": "BRL",
+  "payment_attempts": 0,
+  "payments": [],
+  "version": 1,
+  "created_at": "2026-06-19T10:00:00-03:00",
+  "updated_at": "2026-06-19T10:00:00-03:00"
+}

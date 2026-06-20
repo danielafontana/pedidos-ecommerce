@@ -1,0 +1,582 @@
+{
+  "info": {
+    "_postman_id": "order-service-api-v1",
+    "name": "Order Service API v1",
+    "description": "Collection para o order-service (e-commerce).\n\n## Setup\n1. Importe o environment `Order-Service-Local.postman_environment.json`\n2. Execute **Setup > Get Dev Token** para obter o JWT\n3. Use a pasta **Fluxo Completo** para testar o ciclo de vida do pedido\n\n## WireMock (dev)\n- Cliente ativo: `1`\n- Cliente bloqueado: `2`\n- Cliente não encontrado: `999`\n- Produto disponível: `prod-1`\n- Produto indisponível: `prod-unavailable`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "apiBaseUrl",
+      "value": "http://localhost:8081/api/v1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup",
+      "item": [
+        {
+          "name": "Get Dev Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('accessToken', json.access_token);",
+                  "pm.collectionVariables.set('accessToken', json.access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dev/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["dev", "token"]
+            },
+            "description": "Obtém JWT de desenvolvimento (HS256) com todos os scopes."
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('orderId', json.id);",
+                  "pm.test('Status DRAFT', () => pm.expect(json.status).to.eql('DRAFT'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Create Order - Customer Blocked (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerIdBlocked}}\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Create Order - Customer Not Found (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerIdNotFound}}\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Correlation-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/{{orderId}}",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "List Orders by Customer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders?customer_id={{customerId}}&page=1&size=20",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "customer_id", "value": "{{customerId}}" },
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Item to Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.items && json.items.length > 0) {",
+                  "  pm.environment.set('itemId', json.items[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": \"{{productId}}\",\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/{{orderId}}/items",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "{{orderId}}", "items"]
+            }
+          }
+        },
+        {
+          "name": "Add Item - Product Unavailable (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": \"{{productIdUnavailable}}\",\n  \"quantity\": 1\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/{{orderId}}/items",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "{{orderId}}", "items"]
+            }
+          }
+        },
+        {
+          "name": "Remove Item from Order",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/{{orderId}}/items/{{itemId}}",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "{{orderId}}", "items", "{{itemId}}"]
+            }
+          }
+        },
+        {
+          "name": "Confirm Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status CONFIRMED', () => pm.expect(json.status).to.eql('CONFIRMED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "confirm-{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/{{orderId}}/confirm",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "{{orderId}}", "confirm"]
+            }
+          }
+        },
+        {
+          "name": "Confirm Order - Idempotent Retry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "confirm-fixed-key-001"
+              }
+            ],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/{{orderId}}/confirm",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "{{orderId}}", "confirm"]
+            },
+            "description": "Reutilize a mesma Idempotency-Key para validar idempotência."
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/orders/{{orderId}}",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["orders", "{{orderId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Initiate Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('paymentId', json.id);",
+                  "pm.test('Status PENDING', () => pm.expect(json.status).to.eql('PENDING'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "payment-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/payments",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["payments"]
+            }
+          }
+        },
+        {
+          "name": "Get Payment by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBaseUrl}}/payments/{{paymentId}}",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["payments", "{{paymentId}}"]
+            }
+          }
+        },
+        {
+          "name": "Payment Callback - Approved",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Approved', () => pm.expect(pm.response.json().status).to.eql('APPROVED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "callback-approved-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\",\n  \"transaction_id\": \"txn-{{$guid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/payments/{{paymentId}}/callback",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["payments", "{{paymentId}}", "callback"]
+            }
+          }
+        },
+        {
+          "name": "Payment Callback - Rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "callback-rejected-{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"REJECTED\",\n  \"transaction_id\": \"txn-rejected-{{$guid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{apiBaseUrl}}/payments/{{paymentId}}/callback",
+              "host": ["{{apiBaseUrl}}"],
+              "path": ["payments", "{{paymentId}}", "callback"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fluxo Completo",
+      "description": "Execute esta pasta com Collection Runner (ordem sequencial) para simular uma compra completa.",
+      "item": [
+        {
+          "name": "1. Get Dev Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.environment.set('accessToken', pm.response.json().access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/dev/token"
+          }
+        },
+        {
+          "name": "2. Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.environment.set('orderId', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customerId}}\"\n}"
+            },
+            "url": "{{apiBaseUrl}}/orders"
+          }
+        },
+        {
+          "name": "3. Add Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const items = pm.response.json().items;",
+                  "if (items.length) pm.environment.set('itemId', items[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": \"{{productId}}\",\n  \"quantity\": 2\n}"
+            },
+            "url": "{{apiBaseUrl}}/orders/{{orderId}}/items"
+          }
+        },
+        {
+          "name": "4. Confirm Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Idempotency-Key", "value": "flow-confirm-{{$guid}}" }],
+            "url": "{{apiBaseUrl}}/orders/{{orderId}}/confirm"
+          }
+        },
+        {
+          "name": "5. Initiate Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.environment.set('paymentId', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "flow-payment-{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{orderId}}\"\n}"
+            },
+            "url": "{{apiBaseUrl}}/payments"
+          }
+        },
+        {
+          "name": "6. Payment Callback Approved",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "flow-callback-{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\",\n  \"transaction_id\": \"txn-flow-{{$guid}}\"\n}"
+            },
+            "url": "{{apiBaseUrl}}/payments/{{paymentId}}/callback"
+          }
+        },
+        {
+          "name": "7. Get Order (PAID)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order PAID', () => pm.expect(pm.response.json().status).to.eql('PAID'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{apiBaseUrl}}/orders/{{orderId}}"
+          }
+        }
+      ]
+    }
+  ]
+}

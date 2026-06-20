@@ -1,0 +1,149 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: order-postgres
+    profiles: ["core", "obs"]
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: orders_user
+      POSTGRES_PASSWORD: orders_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - order-platform
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders_user -d orders_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  wiremock:
+    image: wiremock/wiremock:3.9.1
+    container_name: order-wiremock
+    profiles: ["core", "obs"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./wiremock:/home/wiremock
+    networks:
+      - order-platform
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:3.7
+    container_name: order-localstack
+    profiles: ["core", "obs"]
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: sqs
+      DEBUG: "0"
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - ./scripts/init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh
+    networks:
+      - order-platform
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    profiles: ["core", "obs"]
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://orders_user:orders_pass@postgres:5432/orders_db
+      CUSTOMER_SERVICE_URL: http://wiremock:8080/customers
+      CATALOG_SERVICE_URL: http://wiremock:8080/products
+      PAYMENT_GATEWAY_URL: http://wiremock:8080/payments
+      NOTIFICATION_SERVICE_URL: http://wiremock:8080/notifications
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_ORDER_EVENTS_QUEUE: order-events
+      SQS_SAGA_COMMANDS_QUEUE: saga-commands
+      SQS_NOTIFICATION_DISPATCH_QUEUE: notification-dispatch
+      JWT_SECRET: dev-secret-change-in-production
+      JWT_ALGORITHM: HS256
+      LOG_LEVEL: INFO
+      APP_ENV: local
+      TZ: America/Sao_Paulo
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: orders_user
+      POSTGRES_DB: orders_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      wiremock:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    networks:
+      - order-platform
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: order-prometheus
+    profiles: ["obs"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - order-platform
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: order-grafana
+    profiles: ["obs"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    networks:
+      - order-platform
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: order-jaeger
+    profiles: ["obs"]
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+    networks:
+      - order-platform
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: order-keycloak
+    profiles: ["auth"]
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8180:8080"
+    networks:
+      - order-platform
+
+networks:
+  order-platform:
+    driver: bridge
+
+volumes:
+  postgres_data:

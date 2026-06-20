@@ -1,0 +1,37 @@
+---
+description: Regras para commits Git — sem coautoria automatica; usar CMD/PowerShell no Windows
+alwaysApply: true
+---
+
+# Commits Git
+
+## Ambiente (obrigatório)
+
+- **Sempre** executar `git add`, `git commit`, `git status`, `git log` e demais operações de commit pelo **Git nativo do Windows** (CMD ou PowerShell).
+- **Nunca** usar `wsl git ...` ou bash/WSL para criar commits.
+- Repositório: `c:\Users\dani_\Documents\Projetos\pedidos-ecommerce`
+
+Exemplo (PowerShell):
+
+```powershell
+cd c:\Users\dani_\Documents\Projetos\pedidos-ecommerce
+git status
+git add .
+git commit -m "feat: example message"
+```
+
+Exemplo (CMD):
+
+```cmd
+cd /d c:\Users\dani_\Documents\Projetos\pedidos-ecommerce
+git status
+git add .
+git commit -m "feat: example message"
+```
+
+## Conteúdo do commit
+
+- **Nunca** adicionar `Co-authored-by:` automático ou inserido por ferramentas externas.
+- Mensagens de commit devem ter apenas o autor humano; sem trailers de coautoria automática.
+- Não incluir trailers ou referências a assistentes de código no corpo do commit, salvo se o usuário pedir explicitamente.
+- Mensagens em **inglês**, no padrão Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `ci:`).

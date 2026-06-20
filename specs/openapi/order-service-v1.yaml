@@ -1,0 +1,268 @@
+openapi: 3.1.0
+info:
+  title: Order Service API
+  version: 1.0.0
+  description: API de pedidos e pagamentos para e-commerce (JSON em snake_case)
+servers:
+  - url: http://localhost:8081/api/v1
+paths:
+  /orders:
+    post:
+      summary: Cria pedido
+      operationId: createOrder
+      security: [{ bearerAuth: [orders:write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Pedido criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+    get:
+      summary: Lista pedidos por cliente
+      operationId: listOrders
+      security: [{ bearerAuth: [orders:read] }]
+      parameters:
+        - name: customer_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1, minimum: 1 }
+        - name: size
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrders'
+  /orders/{order_id}:
+    get:
+      summary: Detalhe do pedido
+      security: [{ bearerAuth: [orders:read] }]
+      parameters:
+        - $ref: '#/components/parameters/order_id'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+    delete:
+      summary: Cancela pedido
+      security: [{ bearerAuth: [orders:write] }]
+      parameters:
+        - $ref: '#/components/parameters/order_id'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+  /orders/{order_id}/items:
+    post:
+      summary: Adiciona item
+      security: [{ bearerAuth: [orders:write] }]
+      parameters:
+        - $ref: '#/components/parameters/order_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddItemRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+  /orders/{order_id}/items/{item_id}:
+    delete:
+      summary: Remove item
+      security: [{ bearerAuth: [orders:write] }]
+      parameters:
+        - $ref: '#/components/parameters/order_id'
+        - name: item_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+  /orders/{order_id}/confirm:
+    post:
+      summary: Confirma pedido (idempotente)
+      security: [{ bearerAuth: [orders:write] }]
+      parameters:
+        - $ref: '#/components/parameters/order_id'
+        - $ref: '#/components/parameters/idempotencyKey'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+  /payments:
+    post:
+      summary: Inicia pagamento
+      security: [{ bearerAuth: [payments:write] }]
+      parameters:
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitiatePaymentRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+  /payments/{payment_id}:
+    get:
+      summary: Status do pagamento
+      security: [{ bearerAuth: [payments:read] }]
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+  /payments/{payment_id}/callback:
+    post:
+      summary: Webhook do gateway (idempotente)
+      security: [{ bearerAuth: [payments:write] }]
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCallbackRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    order_id:
+      name: order_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    idempotencyKey:
+      name: Idempotency-Key
+      in: header
+      schema: { type: string }
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required: [customer_id]
+      properties:
+        customer_id: { type: string }
+    AddItemRequest:
+      type: object
+      required: [product_id, quantity]
+      properties:
+        product_id: { type: string }
+        quantity: { type: integer, minimum: 1 }
+    InitiatePaymentRequest:
+      type: object
+      required: [order_id]
+      properties:
+        order_id: { type: string, format: uuid }
+    PaymentCallbackRequest:
+      type: object
+      required: [status, transaction_id]
+      properties:
+        status: { type: string, enum: [APPROVED, REJECTED] }
+        transaction_id: { type: string }
+    OrderItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        product_id: { type: string }
+        quantity: { type: integer }
+        unit_price: { type: string, nullable: true }
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        customer_id: { type: string }
+        status: { type: string }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        total_amount: { type: string }
+        currency: { type: string }
+        payment_attempts: { type: integer }
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+        version: { type: integer }
+        cancellation_reason: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        status: { type: string }
+        amount: { type: string }
+        currency: { type: string }
+        external_reference: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    PaginatedOrders:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+        has_next: { type: boolean }
+        has_previous: { type: boolean }
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
