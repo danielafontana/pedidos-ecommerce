@@ -1,8 +1,7 @@
-"""Integration tests mapped to business rules in plano.md and PLANO-IMPLEMENTACAO.md."""
-
-from httpx import AsyncClient
+"""Integration tests for business rules (plano.md / PLANO-IMPLEMENTACAO.md)."""
 
 import pytest
+from httpx import AsyncClient
 
 from .api_helpers import (
     add_item,
@@ -28,7 +27,9 @@ async def test_cannot_confirm_order_without_items(client: AsyncClient) -> None:
     assert response.json()["detail"] == "Order cannot be confirmed"
 
 
-async def test_price_fixed_at_confirmation_not_at_item_addition(client: AsyncClient) -> None:
+async def test_price_fixed_at_confirmation_not_at_item_addition(
+    client: AsyncClient,
+) -> None:
     """plano.md: total uses catalog price at confirmation time."""
     create_response = await create_order(client)
     order_id = create_response.json()["id"]
@@ -63,14 +64,18 @@ async def test_payment_only_after_confirmation(client: AsyncClient) -> None:
     assert "confirmed orders" in response.json()["detail"]
 
 
-async def test_blocked_customer_cannot_create_order(client: AsyncClient) -> None:
+async def test_blocked_customer_cannot_create_order(
+    client: AsyncClient,
+) -> None:
     """WireMock customers-blocked: inactive customers are rejected."""
     response = await create_order(client, customer_id="2")
     assert response.status_code == 422
     assert "blocked" in response.json()["detail"].lower()
 
 
-async def test_unavailable_product_cannot_be_added(client: AsyncClient) -> None:
+async def test_unavailable_product_cannot_be_added(
+    client: AsyncClient,
+) -> None:
     """WireMock products-unavailable: catalog validation on add item."""
     create_response = await create_order(client)
     order_id = create_response.json()["id"]
@@ -90,7 +95,9 @@ async def test_only_one_active_order_per_customer(client: AsyncClient) -> None:
     assert second.json()["type"].endswith("/active_order_exists")
 
 
-async def test_can_cancel_order_while_payment_pending(client: AsyncClient) -> None:
+async def test_can_cancel_order_while_payment_pending(
+    client: AsyncClient,
+) -> None:
     confirmed = await create_confirmed_order(client)
     await initiate_payment(client, confirmed["id"])
 
@@ -110,7 +117,9 @@ async def test_cannot_cancel_paid_order(client: AsyncClient) -> None:
     assert "cannot be cancelled" in response.json()["detail"].lower()
 
 
-async def test_three_payment_rejections_auto_cancel_order(client: AsyncClient) -> None:
+async def test_three_payment_rejections_auto_cancel_order(
+    client: AsyncClient,
+) -> None:
     """plano.md: third payment rejection cancels the order."""
     confirmed = await create_confirmed_order(client)
     order_id = confirmed["id"]
@@ -139,7 +148,9 @@ async def test_three_payment_rejections_auto_cancel_order(client: AsyncClient) -
             assert "Auto-cancelled" in body["cancellation_reason"]
 
 
-async def test_confirm_is_idempotent_with_same_key(client: AsyncClient) -> None:
+async def test_confirm_is_idempotent_with_same_key(
+    client: AsyncClient,
+) -> None:
     """plano.md: confirmation must be idempotent."""
     create_response = await create_order(client)
     order_id = create_response.json()["id"]
@@ -155,12 +166,18 @@ async def test_confirm_is_idempotent_with_same_key(client: AsyncClient) -> None:
     assert second.json()["id"] == first.json()["id"]
 
 
-async def test_initiate_payment_is_idempotent_with_same_key(client: AsyncClient) -> None:
+async def test_initiate_payment_is_idempotent_with_same_key(
+    client: AsyncClient,
+) -> None:
     confirmed = await create_confirmed_order(client)
     key = "payment-key-001"
 
-    first = await initiate_payment(client, confirmed["id"], idempotency_key=key)
-    second = await initiate_payment(client, confirmed["id"], idempotency_key=key)
+    first = await initiate_payment(
+        client, confirmed["id"], idempotency_key=key
+    )
+    second = await initiate_payment(
+        client, confirmed["id"], idempotency_key=key
+    )
 
     assert first.status_code == 201
     assert second.status_code == 201

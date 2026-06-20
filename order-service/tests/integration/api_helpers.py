@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from httpx import AsyncClient, Response
 
 
-async def create_order(client: AsyncClient, customer_id: str = "1") -> Response:
-    return await client.post("/api/v1/orders", json={"customer_id": customer_id})
+async def create_order(
+    client: AsyncClient, customer_id: str = "1"
+) -> Response:
+    return await client.post(
+        "/api/v1/orders", json={"customer_id": customer_id}
+    )
 
 
 async def add_item(
@@ -25,7 +31,9 @@ async def confirm_order(
     idempotency_key: str | None = None,
 ) -> Response:
     headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
-    return await client.post(f"/api/v1/orders/{order_id}/confirm", headers=headers)
+    return await client.post(
+        f"/api/v1/orders/{order_id}/confirm", headers=headers
+    )
 
 
 async def initiate_payment(
@@ -34,7 +42,9 @@ async def initiate_payment(
     idempotency_key: str | None = None,
 ) -> Response:
     headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
-    return await client.post("/api/v1/payments", json={"order_id": order_id}, headers=headers)
+    return await client.post(
+        "/api/v1/payments", json={"order_id": order_id}, headers=headers
+    )
 
 
 async def payment_callback(
@@ -65,7 +75,7 @@ async def create_confirmed_order(
     customer_id: str = "1",
     product_id: str = "prod-1",
     quantity: int = 1,
-) -> dict:
+) -> dict[str, Any]:
     create_response = await create_order(client, customer_id)
     assert create_response.status_code == 201, create_response.text
     order = create_response.json()
@@ -75,4 +85,4 @@ async def create_confirmed_order(
 
     confirm_response = await confirm_order(client, order["id"])
     assert confirm_response.status_code == 200, confirm_response.text
-    return confirm_response.json()
+    return cast(dict[str, Any], confirm_response.json())

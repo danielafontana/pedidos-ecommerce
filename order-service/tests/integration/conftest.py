@@ -3,8 +3,9 @@ from __future__ import annotations
 import importlib
 import os
 import sys
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -43,12 +44,14 @@ def docker_available() -> None:
 
 
 @pytest.fixture(scope="session")
-def integration_env(docker_available: None) -> dict[str, str]:
+def integration_env(docker_available: None) -> Iterator[dict[str, str]]:
     postgres = PostgresContainer("postgres:16-alpine", driver="asyncpg")
     postgres.start()
 
     wiremock = DockerContainer("wiremock/wiremock:3.9.1")
-    wiremock.with_volume_mapping(str(WIREMOCK_MAPPINGS), "/home/wiremock/mappings")
+    wiremock.with_volume_mapping(
+        str(WIREMOCK_MAPPINGS), "/home/wiremock/mappings"
+    )
     wiremock.with_exposed_ports(8080)
     wiremock.start()
     wait_for_logs(wiremock, "port:", timeout=60)
@@ -76,21 +79,21 @@ def integration_env(docker_available: None) -> dict[str, str]:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def stub_event_publisher(integration_env: dict[str, str]) -> None:
+def stub_event_publisher(integration_env: dict[str, str]) -> Iterator[None]:
     import order_service.infrastructure.messaging.sqs_publisher as sqs_mod
 
     class NoOpEventPublisher:
         async def publish(self, event_type: str, payload: dict) -> None:
             return None
 
-    original = sqs_mod.SqsEventPublisher
-    sqs_mod.SqsEventPublisher = NoOpEventPublisher  # type: ignore[misc, assignment]
-    yield
-    sqs_mod.SqsEventPublisher = original
+    with patch.object(sqs_mod, "SqsEventPublisher", NoOpEventPublisher):
+        yield
 
 
 @pytest.fixture(autouse=True)
-async def reset_database(integration_env: dict[str, str]) -> AsyncIterator[None]:
+async def reset_database(
+    integration_env: dict[str, str],
+) -> AsyncIterator[None]:
     from order_service.infrastructure.persistence.database import engine
     from order_service.infrastructure.persistence.models import Base
 
@@ -101,9 +104,13 @@ async def reset_database(integration_env: dict[str, str]) -> AsyncIterator[None]
 
 
 @pytest.fixture
-async def client(integration_env: dict[str, str]) -> AsyncIterator[AsyncClient]:
+async def client(
+    integration_env: dict[str, str],
+) -> AsyncIterator[AsyncClient]:
     from order_service.presentation.main import app
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as http_client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as http_client:
         yield http_client

@@ -1,8 +1,7 @@
 """Integration tests for the full order lifecycle (plano.md steps 1-5)."""
 
-from httpx import AsyncClient
-
 import pytest
+from httpx import AsyncClient
 
 from .api_helpers import (
     add_item,
@@ -15,7 +14,9 @@ from .api_helpers import (
 pytestmark = pytest.mark.integration
 
 
-async def test_full_order_lifecycle_create_confirm_pay(client: AsyncClient) -> None:
+async def test_full_order_lifecycle_create_confirm_pay(
+    client: AsyncClient,
+) -> None:
     create_response = await create_order(client, customer_id="1")
     assert create_response.status_code == 201
     order = create_response.json()
