@@ -93,8 +93,11 @@ pytest tests/contract -v --no-cov -m contract
 Mutation testing (domain):
 
 ```bash
-mutmut run --paths-to-mutate order_service/domain --runner "python -m pytest tests/unit -x --no-cov -q"
+mutmut run
+mutmut results
 ```
+
+Paths and pytest args are configured in `order-service/pyproject.toml` under `[tool.mutmut]`.
 
 ## Estrutura
 

@@ -72,6 +72,11 @@ fail_under = 80
 show_missing = true
 precision = 1
 
+[tool.mutmut]
+source_paths = ["src/order_service/domain"]
+pytest_add_cli_args_test_selection = ["tests/unit"]
+pytest_add_cli_args = ["-x", "-q", "--no-cov"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

@@ -29,6 +29,5 @@ jobs:
 
       - name: Run mutmut on domain layer
         run: |
-          mutmut run --paths-to-mutate order_service/domain \
-            --runner "python -m pytest tests/unit -x --no-cov -q"
+          mutmut run
           mutmut results
