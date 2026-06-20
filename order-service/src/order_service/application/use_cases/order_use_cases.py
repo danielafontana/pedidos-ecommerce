@@ -1,8 +1,9 @@
 import hashlib
-import json
 from uuid import UUID, uuid4
 
+from order_service.application.saga.orchestrator import OrderSagaOrchestrator
 from order_service.domain.entities.order import Order, Payment
+from order_service.domain.events.order_events import OrderEventType
 from order_service.domain.exceptions.domain_errors import (
     ActiveOrderExistsError,
     CatalogValidationError,
@@ -23,11 +24,11 @@ from order_service.domain.ports.repositories import (
     OrderRepository,
     PaymentGateway,
     PaymentRepository,
-    SagaRepository,
 )
-from order_service.domain.value_objects.money import Money
-from order_service.domain.value_objects.order_status import OrderStatus, PaymentStatus
-from order_service.application.saga.orchestrator import OrderSagaOrchestrator
+from order_service.domain.value_objects.order_status import (
+    OrderStatus,
+    PaymentStatus,
+)
 
 
 class CreateOrderUseCase:
@@ -42,15 +43,21 @@ class CreateOrderUseCase:
     async def execute(self, customer_id: str) -> Order:
         customer = await self._customer_gateway.get_customer(customer_id)
         if customer.status != "ACTIVE":
-            raise CustomerValidationError(f"Customer {customer_id} is not active")
+            raise CustomerValidationError(
+                f"Customer {customer_id} is not active"
+            )
         if await self._order_repo.has_active_order(customer_id):
             raise ActiveOrderExistsError(customer_id)
-        order = Order(id=uuid4(), customer_id=customer_id, status=OrderStatus.DRAFT)
+        order = Order(
+            id=uuid4(), customer_id=customer_id, status=OrderStatus.DRAFT
+        )
         return await self._order_repo.save(order)
 
 
 class GetOrderUseCase:
-    def __init__(self, order_repo: OrderRepository, payment_repo: PaymentRepository) -> None:
+    def __init__(
+        self, order_repo: OrderRepository, payment_repo: PaymentRepository
+    ) -> None:
         self._order_repo = order_repo
         self._payment_repo = payment_repo
 
@@ -64,15 +71,23 @@ class GetOrderUseCase:
 
 
 class ListOrdersUseCase:
-    def __init__(self, order_repo: OrderRepository, payment_repo: PaymentRepository) -> None:
+    def __init__(
+        self, order_repo: OrderRepository, payment_repo: PaymentRepository
+    ) -> None:
         self._order_repo = order_repo
         self._payment_repo = payment_repo
 
-    async def execute(self, customer_id: str, page: int = 1, size: int = 20) -> dict:
+    async def execute(
+        self, customer_id: str, page: int = 1, size: int = 20
+    ) -> dict:
         size = min(max(size, 1), 100)
         page = max(page, 1)
-        result = await self._order_repo.find_by_customer(customer_id, page, size)
-        payments_by_order = await self._payment_repo.find_by_order_ids([o.id for o in result.items])
+        result = await self._order_repo.find_by_customer(
+            customer_id, page, size
+        )
+        payments_by_order = await self._payment_repo.find_by_order_ids(
+            [o.id for o in result.items]
+        )
         return {
             "items": result.items,
             "payments_by_order": payments_by_order,
@@ -86,11 +101,15 @@ class ListOrdersUseCase:
 
 
 class AddItemUseCase:
-    def __init__(self, order_repo: OrderRepository, catalog_gateway: CatalogGateway) -> None:
+    def __init__(
+        self, order_repo: OrderRepository, catalog_gateway: CatalogGateway
+    ) -> None:
         self._order_repo = order_repo
         self._catalog_gateway = catalog_gateway
 
-    async def execute(self, order_id: UUID, product_id: str, quantity: int) -> Order:
+    async def execute(
+        self, order_id: UUID, product_id: str, quantity: int
+    ) -> Order:
         order = await self._order_repo.get_by_id(order_id)
         if order is None:
             raise OrderNotFoundError(str(order_id))
@@ -131,10 +150,14 @@ class ConfirmOrderUseCase:
         self._saga = saga
         self._idempotency = idempotency
 
-    async def execute(self, order_id: UUID, idempotency_key: str | None = None) -> Order:
+    async def execute(
+        self, order_id: UUID, idempotency_key: str | None = None
+    ) -> Order:
         request_hash = hashlib.sha256(str(order_id).encode()).hexdigest()
         if idempotency_key:
-            cached = await self._idempotency.get(idempotency_key, "confirm_order")
+            cached = await self._idempotency.get(
+                idempotency_key, "confirm_order"
+            )
             if cached:
                 if cached["request_hash"] != request_hash:
                     raise IdempotencyConflictError()
@@ -165,7 +188,9 @@ class CancelOrderUseCase:
         self._payment_repo = payment_repo
         self._event_publisher = event_publisher
 
-    async def execute(self, order_id: UUID, reason: str | None = None) -> Order:
+    async def execute(
+        self, order_id: UUID, reason: str | None = None
+    ) -> Order:
         order = await self._order_repo.get_by_id(order_id)
         if order is None:
             raise OrderNotFoundError(str(order_id))
@@ -177,7 +202,8 @@ class CancelOrderUseCase:
         order.cancel(reason)
         saved = await self._order_repo.save(order)
         await self._event_publisher.publish(
-            "OrderCancelled", {"orderId": str(order_id), "reason": reason}
+            OrderEventType.ORDER_CANCELLED,
+            {"orderId": str(order_id), "reason": reason},
         )
         return saved
 
@@ -197,13 +223,19 @@ class InitiatePaymentUseCase:
         self._event_publisher = event_publisher
         self._idempotency = idempotency
 
-    async def execute(self, order_id: UUID, idempotency_key: str | None = None) -> Payment:
+    async def execute(
+        self, order_id: UUID, idempotency_key: str | None = None
+    ) -> Payment:
         request_hash = hashlib.sha256(str(order_id).encode()).hexdigest()
         if idempotency_key:
-            existing = await self._payment_repo.get_by_idempotency_key(idempotency_key)
+            existing = await self._payment_repo.get_by_idempotency_key(
+                idempotency_key
+            )
             if existing:
                 return existing
-            cached = await self._idempotency.get(idempotency_key, "initiate_payment")
+            cached = await self._idempotency.get(
+                idempotency_key, "initiate_payment"
+            )
             if cached and cached["request_hash"] != request_hash:
                 raise IdempotencyConflictError()
 
@@ -211,7 +243,9 @@ class InitiatePaymentUseCase:
         if order is None:
             raise OrderNotFoundError(str(order_id))
         if not order.can_initiate_payment():
-            raise InvalidOrderStateError("Payment can only be initiated for confirmed orders")
+            raise InvalidOrderStateError(
+                "Payment can only be initiated for confirmed orders"
+            )
 
         existing_payment = await self._payment_repo.get_by_order_id(order_id)
         if existing_payment and existing_payment.status in {
@@ -227,7 +261,9 @@ class InitiatePaymentUseCase:
 
         try:
             result = await self._payment_gateway.initiate_payment(
-                order_id, order.total_amount.amount, order.total_amount.currency
+                order_id,
+                order.total_amount.amount,
+                order.total_amount.currency,
             )
         except PaymentGatewayError:
             order = await self._order_repo.get_by_id(order_id)
@@ -237,7 +273,10 @@ class InitiatePaymentUseCase:
                 await self._order_repo.save(order)
             raise
 
-        if existing_payment and existing_payment.status == PaymentStatus.REJECTED:
+        if (
+            existing_payment
+            and existing_payment.status == PaymentStatus.REJECTED
+        ):
             existing_payment.reinitiate(result.external_id)
             saved = await self._payment_repo.save(existing_payment)
         else:
@@ -251,7 +290,8 @@ class InitiatePaymentUseCase:
             )
             saved = await self._payment_repo.save(payment)
         await self._event_publisher.publish(
-            "PaymentInitiated", {"orderId": str(order_id), "paymentId": str(saved.id)}
+            OrderEventType.PAYMENT_INITIATED,
+            {"orderId": str(order_id), "paymentId": str(saved.id)},
         )
 
         if idempotency_key:
@@ -297,9 +337,13 @@ class PaymentCallbackUseCase:
         transaction_id: str,
         idempotency_key: str | None = None,
     ) -> Payment:
-        request_hash = hashlib.sha256(f"{payment_id}:{status}:{transaction_id}".encode()).hexdigest()
+        request_hash = hashlib.sha256(
+            f"{payment_id}:{status}:{transaction_id}".encode()
+        ).hexdigest()
         if idempotency_key:
-            cached = await self._idempotency.get(idempotency_key, "payment_callback")
+            cached = await self._idempotency.get(
+                idempotency_key, "payment_callback"
+            )
             if cached:
                 if cached["request_hash"] != request_hash:
                     raise IdempotencyConflictError()
@@ -310,7 +354,11 @@ class PaymentCallbackUseCase:
         payment = await self._payment_repo.get_by_id(payment_id)
         if payment is None:
             raise PaymentNotFoundError(str(payment_id))
-        if payment.status in {PaymentStatus.APPROVED, PaymentStatus.REJECTED, PaymentStatus.VOID}:
+        if payment.status in {
+            PaymentStatus.APPROVED,
+            PaymentStatus.REJECTED,
+            PaymentStatus.VOID,
+        }:
             return payment
 
         order = await self._order_repo.get_by_id(payment.order_id)
@@ -321,16 +369,17 @@ class PaymentCallbackUseCase:
         if status.upper() == "APPROVED":
             payment.approve(transaction_id)
             order.apply_payment_approved()
-            event_type = "PaymentApproved"
+            event_type = OrderEventType.PAYMENT_APPROVED
         else:
             payment.reject()
             order.apply_payment_rejected()
-            event_type = "PaymentRejected"
+            event_type = OrderEventType.PAYMENT_REJECTED
 
         await self._payment_repo.save(payment)
         await self._order_repo.save(order)
         await self._event_publisher.publish(
-            event_type, {"orderId": str(order.id), "paymentId": str(payment.id)}
+            event_type,
+            {"orderId": str(order.id), "paymentId": str(payment.id)},
         )
         await self._notification_gateway.send_notification(
             order.customer_id,

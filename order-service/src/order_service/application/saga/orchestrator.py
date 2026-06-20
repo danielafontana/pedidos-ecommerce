@@ -1,6 +1,7 @@
-from decimal import Decimal
 from uuid import UUID, uuid4
 
+from order_service.application.saga import compensations, steps
+from order_service.domain.entities.order import Order
 from order_service.domain.exceptions.domain_errors import (
     CatalogValidationError,
     CustomerValidationError,
@@ -35,61 +36,63 @@ class OrderSagaOrchestrator:
         self._notification_gateway = notification_gateway
         self._saga_repo = saga_repo
 
-    async def confirm_order(self, order_id: UUID):
+    async def confirm_order(self, order_id: UUID) -> Order:
         saga_id = uuid4()
         order = await self._order_repo.get_by_id(order_id)
         if order is None:
             raise OrderNotFoundError(str(order_id))
 
-        await self._saga_repo.save_instance(
-            saga_id, order_id, "VALIDATE_CUSTOMER", "RUNNING", {}
+        await steps.record_saga_step(
+            self._saga_repo,
+            saga_id,
+            order_id,
+            "VALIDATE_CUSTOMER",
+            "RUNNING",
+            {},
         )
 
         try:
-            customer = await self._customer_gateway.get_customer(order.customer_id)
-            if customer.status != "ACTIVE":
-                raise CustomerValidationError(f"Customer {order.customer_id} is not active")
+            await steps.validate_customer(
+                self._customer_gateway, order.customer_id
+            )
         except CustomerValidationError:
-            await self._saga_repo.save_instance(
-                saga_id, order_id, "VALIDATE_CUSTOMER", "FAILED", {"reason": "customer_invalid"}
+            await compensations.compensate_customer_validation_failure(
+                self._saga_repo, saga_id, order_id
             )
             raise
 
-        await self._saga_repo.save_instance(
-            saga_id, order_id, "VALIDATE_CATALOG", "RUNNING", {}
+        await steps.record_saga_step(
+            self._saga_repo,
+            saga_id,
+            order_id,
+            "VALIDATE_CATALOG",
+            "RUNNING",
+            {},
         )
 
-        prices: dict[str, str] = {}
         try:
-            for item in order.items:
-                product = await self._catalog_gateway.get_product(item.product_id)
-                if not product.available:
-                    raise CatalogValidationError(f"Product {item.product_id} unavailable")
-                prices[item.product_id] = str(product.price)
+            prices = await steps.fetch_catalog_prices(
+                self._catalog_gateway, order
+            )
         except CatalogValidationError:
-            await self._saga_repo.save_instance(
-                saga_id, order_id, "VALIDATE_CATALOG", "COMPENSATED", {"action": "keep_draft"}
+            await compensations.compensate_catalog_validation_failure(
+                self._saga_repo, saga_id, order_id
             )
             raise
 
-        order.version += 1
-        order.confirm_with_prices({k: Decimal(v) for k, v in prices.items()})
-        saved = await self._order_repo.save(order)
+        saved = await steps.persist_confirmed_order(
+            self._order_repo, order, prices
+        )
 
-        await self._saga_repo.save_instance(
+        await steps.record_saga_step(
+            self._saga_repo,
             saga_id,
             order_id,
             "PERSIST_CONFIRMED",
             "COMPLETED",
             {"total": str(saved.total_amount.amount)},
         )
-        await self._event_publisher.publish(
-            "OrderConfirmed",
-            {"orderId": str(saved.id), "customerId": saved.customer_id},
-        )
-        await self._notification_gateway.send_notification(
-            saved.customer_id,
-            "OrderConfirmed",
-            {"orderId": str(saved.id), "total": str(saved.total_amount.amount)},
+        await steps.publish_order_confirmed(
+            self._event_publisher, self._notification_gateway, saved
         )
         return saved
