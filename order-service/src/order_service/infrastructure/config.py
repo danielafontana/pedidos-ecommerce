@@ -4,7 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://orders_user:orders_pass@localhost:5432/orders_db"
+    database_url: str = (
+        "postgresql+asyncpg://orders_user:orders_pass@localhost:5432/orders_db"
+    )
     customer_service_url: str = "http://localhost:8080/customers"
     catalog_service_url: str = "http://localhost:8080/products"
     payment_gateway_url: str = "http://localhost:8080/payments"

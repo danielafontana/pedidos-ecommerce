@@ -2,12 +2,23 @@ import json
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from order_service.domain.datetime_utils import now
-from order_service.domain.ports.repositories import IdempotencyStore, SagaRepository
+from order_service.domain.ports.repositories import (
+    IdempotencyStore,
+    SagaRepository,
+)
 from order_service.infrastructure.config import settings
-from order_service.infrastructure.persistence.models import Base, IdempotencyKeyModel, SagaInstanceModel
+from order_service.infrastructure.persistence.models import (
+    Base,
+    IdempotencyKeyModel,
+    SagaInstanceModel,
+)
 
 engine = create_async_engine(settings.database_url, echo=False)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
@@ -32,9 +43,14 @@ class SqlAlchemyIdempotencyStore(IdempotencyStore):
         model = result.scalar_one_or_none()
         if model is None:
             return None
-        return {"request_hash": model.request_hash, "response": json.loads(model.response_body)}
+        return {
+            "request_hash": model.request_hash,
+            "response": json.loads(model.response_body),
+        }
 
-    async def save(self, key: str, operation: str, request_hash: str, response: dict) -> None:
+    async def save(
+        self, key: str, operation: str, request_hash: str, response: dict
+    ) -> None:
         model = IdempotencyKeyModel(
             id=uuid4(),
             key=key,
@@ -52,10 +68,17 @@ class SqlAlchemySagaRepository(SagaRepository):
         self._session = session
 
     async def save_instance(
-        self, saga_id: UUID, order_id: UUID, step: str, status: str, payload: dict
+        self,
+        saga_id: UUID,
+        order_id: UUID,
+        step: str,
+        status: str,
+        payload: dict,
     ) -> None:
         result = await self._session.execute(
-            select(SagaInstanceModel).where(SagaInstanceModel.order_id == order_id)
+            select(SagaInstanceModel).where(
+                SagaInstanceModel.order_id == order_id
+            )
         )
         model = result.scalar_one_or_none()
         current = now()
@@ -79,7 +102,9 @@ class SqlAlchemySagaRepository(SagaRepository):
 
     async def get_by_order_id(self, order_id: UUID) -> dict | None:
         result = await self._session.execute(
-            select(SagaInstanceModel).where(SagaInstanceModel.order_id == order_id)
+            select(SagaInstanceModel).where(
+                SagaInstanceModel.order_id == order_id
+            )
         )
         model = result.scalar_one_or_none()
         if model is None:
