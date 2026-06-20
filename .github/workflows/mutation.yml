@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Mutation Tests
 
 on:
   pull_request:
@@ -9,8 +9,8 @@ on:
   workflow_call:
 
 jobs:
-  integration:
-    name: Integration Tests
+  mutation:
+    name: Mutation Tests (domain)
     runs-on: ubuntu-latest
 
     defaults:
@@ -27,5 +27,8 @@ jobs:
           python-version: "3.12"
           install-deps: dev
 
-      - name: Run integration tests with Testcontainers
-        run: pytest tests/integration -v --tb=short --no-cov -m integration
+      - name: Run mutmut on domain layer
+        run: |
+          mutmut run --paths-to-mutate order_service/domain \
+            --runner "python -m pytest tests/unit -x --no-cov -q"
+          mutmut results

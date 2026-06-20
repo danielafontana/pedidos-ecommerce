@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Contract Tests
 
 on:
   pull_request:
@@ -9,8 +9,8 @@ on:
   workflow_call:
 
 jobs:
-  integration:
-    name: Integration Tests
+  contract:
+    name: Contract Tests
     runs-on: ubuntu-latest
 
     defaults:
@@ -27,5 +27,5 @@ jobs:
           python-version: "3.12"
           install-deps: dev
 
-      - name: Run integration tests with Testcontainers
-        run: pytest tests/integration -v --tb=short --no-cov -m integration
+      - name: Run contract tests
+        run: pytest tests/contract -v --tb=short --no-cov -m contract
