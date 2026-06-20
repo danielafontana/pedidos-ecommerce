@@ -1,5 +1,4 @@
 import json
-
 from typing import Any
 
 import boto3
@@ -24,9 +23,9 @@ class SqsEventPublisher(EventPublisher):
             aws_access_key_id=settings.aws_access_key_id,
             aws_secret_access_key=settings.aws_secret_access_key,
         )
-        self._queue_url = self._client.get_queue_url(QueueName=self._queue_name)[
-            "QueueUrl"
-        ]
+        self._queue_url = self._client.get_queue_url(
+            QueueName=self._queue_name
+        )["QueueUrl"]
 
     async def publish(self, event_type: str, payload: dict) -> None:
         self._ensure_client()

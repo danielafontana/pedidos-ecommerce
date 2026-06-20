@@ -21,7 +21,9 @@ WIREMOCK_MAPPINGS = wiremock_mappings_dir(Path(__file__))
 
 
 def _dispose_database_engine() -> None:
-    db_mod = sys.modules.get("order_service.infrastructure.persistence.database")
+    db_mod = sys.modules.get(
+        "order_service.infrastructure.persistence.database"
+    )
     if db_mod is None:
         return
     engine = getattr(db_mod, "engine", None)
