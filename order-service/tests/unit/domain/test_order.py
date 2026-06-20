@@ -4,7 +4,9 @@ from uuid import uuid4
 import pytest
 
 from order_service.domain.entities.order import Order
-from order_service.domain.exceptions.domain_errors import InvalidOrderStateError
+from order_service.domain.exceptions.domain_errors import (
+    InvalidOrderStateError,
+)
 from order_service.domain.value_objects.order_status import OrderStatus
 
 
@@ -50,14 +52,18 @@ def test_payment_rejection_auto_cancel_after_three_attempts():
 
 
 def test_cannot_cancel_paid_order():
-    order = Order(id=uuid4(), customer_id="1", status=OrderStatus.PAYMENT_PENDING)
+    order = Order(
+        id=uuid4(), customer_id="1", status=OrderStatus.PAYMENT_PENDING
+    )
     order.apply_payment_approved()
     with pytest.raises(InvalidOrderStateError):
         order.cancel()
 
 
 def test_can_cancel_while_payment_pending():
-    order = Order(id=uuid4(), customer_id="1", status=OrderStatus.PAYMENT_PENDING)
+    order = Order(
+        id=uuid4(), customer_id="1", status=OrderStatus.PAYMENT_PENDING
+    )
     assert order.can_cancel()
     order.cancel("customer request")
     assert order.status == OrderStatus.CANCELLED

@@ -4,7 +4,6 @@ from decimal import Decimal
 from uuid import UUID
 
 from order_service.domain.entities.order import Order, Payment
-from order_service.domain.value_objects.order_status import OrderStatus
 
 
 @dataclass
@@ -66,7 +65,9 @@ class OrderRepository(ABC):
         pass
 
     @abstractmethod
-    async def has_active_order(self, customer_id: str, exclude_order_id: UUID | None = None) -> bool:
+    async def has_active_order(
+        self, customer_id: str, exclude_order_id: UUID | None = None
+    ) -> bool:
         pass
 
 
@@ -84,7 +85,9 @@ class PaymentRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_order_ids(self, order_ids: list[UUID]) -> dict[UUID, Payment]:
+    async def find_by_order_ids(
+        self, order_ids: list[UUID]
+    ) -> dict[UUID, Payment]:
         pass
 
     @abstractmethod
@@ -98,7 +101,9 @@ class IdempotencyStore(ABC):
         pass
 
     @abstractmethod
-    async def save(self, key: str, operation: str, request_hash: str, response: dict) -> None:
+    async def save(
+        self, key: str, operation: str, request_hash: str, response: dict
+    ) -> None:
         pass
 
 
@@ -116,13 +121,17 @@ class CatalogGateway(ABC):
 
 class PaymentGateway(ABC):
     @abstractmethod
-    async def initiate_payment(self, order_id: UUID, amount: Decimal, currency: str) -> PaymentGatewayResult:
+    async def initiate_payment(
+        self, order_id: UUID, amount: Decimal, currency: str
+    ) -> PaymentGatewayResult:
         pass
 
 
 class NotificationGateway(ABC):
     @abstractmethod
-    async def send_notification(self, customer_id: str, event_type: str, payload: dict) -> None:
+    async def send_notification(
+        self, customer_id: str, event_type: str, payload: dict
+    ) -> None:
         pass
 
 
@@ -134,7 +143,14 @@ class EventPublisher(ABC):
 
 class SagaRepository(ABC):
     @abstractmethod
-    async def save_instance(self, saga_id: UUID, order_id: UUID, step: str, status: str, payload: dict) -> None:
+    async def save_instance(
+        self,
+        saga_id: UUID,
+        order_id: UUID,
+        step: str,
+        status: str,
+        payload: dict,
+    ) -> None:
         pass
 
     @abstractmethod

@@ -1,5 +1,5 @@
-from order_service.domain.value_objects.order_status import OrderStatus
 from order_service.domain.services.state_machine import can_transition
+from order_service.domain.value_objects.order_status import OrderStatus
 
 
 def test_draft_to_confirmed():

@@ -18,7 +18,12 @@ class PaymentStatus(StrEnum):
 
 
 ACTIVE_ORDER_STATUSES = frozenset(
-    {OrderStatus.DRAFT, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_PENDING, OrderStatus.PAYMENT_FAILED}
+    {
+        OrderStatus.DRAFT,
+        OrderStatus.CONFIRMED,
+        OrderStatus.PAYMENT_PENDING,
+        OrderStatus.PAYMENT_FAILED,
+    }
 )
 
 EDITABLE_ORDER_STATUSES = frozenset({OrderStatus.DRAFT})

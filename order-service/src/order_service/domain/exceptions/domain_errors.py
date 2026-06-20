@@ -19,7 +19,9 @@ class ItemNotFoundError(DomainError):
 
 class PaymentNotFoundError(DomainError):
     def __init__(self, payment_id: str) -> None:
-        super().__init__(f"Payment {payment_id} not found", "payment_not_found")
+        super().__init__(
+            f"Payment {payment_id} not found", "payment_not_found"
+        )
 
 
 class InvalidOrderStateError(DomainError):
@@ -52,7 +54,9 @@ class ActiveOrderExistsError(DomainError):
 
 class ConcurrencyError(DomainError):
     def __init__(self) -> None:
-        super().__init__("Concurrent modification detected", "concurrency_conflict")
+        super().__init__(
+            "Concurrent modification detected", "concurrency_conflict"
+        )
 
 
 class IdempotencyConflictError(DomainError):
