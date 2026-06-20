@@ -15,7 +15,7 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.postgres import PostgresContainer
 
-from tests.support.paths import wiremock_mappings_dir
+from order_service.testing.paths import wiremock_mappings_dir
 
 WIREMOCK_MAPPINGS = wiremock_mappings_dir(Path(__file__))
 

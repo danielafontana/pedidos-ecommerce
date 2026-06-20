@@ -11,7 +11,7 @@ import pytest
 import yaml
 from jsonschema import RefResolver
 
-from tests.support.paths import find_repo_root
+from order_service.testing.paths import find_repo_root
 
 REPO_ROOT = find_repo_root(Path(__file__))
 OPENAPI_PATH = REPO_ROOT / "specs" / "openapi" / "order-service-v1.yaml"

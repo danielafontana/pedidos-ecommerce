@@ -11,7 +11,7 @@ import yaml
 from httpx import AsyncClient
 from jsonschema import RefResolver
 
-from tests.support.paths import find_repo_root
+from order_service.testing.paths import find_repo_root
 
 pytestmark = pytest.mark.contract
 
