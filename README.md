@@ -15,15 +15,17 @@ docker compose --profile core up -d --build
 
 # Com observabilidade (prometheus + grafana + jaeger)
 docker compose --profile obs up -d --build
-```
 
-## Endpoints
+# Com Keycloak (profile auth)
+docker compose --profile auth up -d --build
+```
 
 | Serviço | URL |
 |---------|-----|
 | API | http://localhost:8081 |
 | Swagger UI | http://localhost:8081/swagger-ui.html |
 | WireMock | http://localhost:8080 |
+| Keycloak | http://localhost:8180 (admin/admin) |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Jaeger | http://localhost:16686 |
@@ -82,20 +84,38 @@ Testes de integração (PostgreSQL + WireMock via Testcontainers — requer Dock
 pytest tests/integration -v --no-cov -m integration
 ```
 
+Testes de contrato (specs + respostas da API):
+
+```bash
+pytest tests/contract -v --no-cov -m contract
+```
+
+Mutation testing (domain):
+
+```bash
+mutmut run --paths-to-mutate order_service/domain --runner "python -m pytest tests/unit -x --no-cov -q"
+```
+
 ## Estrutura
 
 ```
 ├── docker-compose.yml
 ├── wiremock/mappings/
 ├── specs/
+│   ├── openapi/
+│   ├── asyncapi/
+│   └── examples/
 ├── docs/
 ├── order-service/
 │   ├── src/order_service/
-│   │   ├── domain/
-│   │   ├── application/
-│   │   ├── infrastructure/
-│   │   └── presentation/
+│   │   ├── domain/          # entities, events, ports, services
+│   │   ├── application/     # use_cases, dto, saga/
+│   │   ├── infrastructure/  # persistence, http, messaging, observability
+│   │   └── presentation/    # api, auth, middleware, bootstrap
 │   └── tests/
+│       ├── unit/
+│       ├── integration/
+│       └── contract/
 └── PLANO-IMPLEMENTACAO.md
 ```
 
@@ -112,9 +132,12 @@ Inspirado na estrutura do [dotflow](https://github.com/dotflow-io/dotflow/tree/m
 
 | Workflow | Descrição |
 |----------|-----------|
+| `ci.yml` | Pipeline unificado (orquestra todos abaixo + Docker + Trivy) |
 | `code-quality.yml` | Ruff, Flake8, MyPy |
-| `test.yml` | Testes unitários + cobertura |
-| `ci.yml` | Build Docker + scan Trivy |
+| `test.yml` | Testes unitários + cobertura (≥80% domain) |
+| `integration.yml` | Testes de integração (Testcontainers) |
+| `contract.yml` | Testes de contrato (OpenAPI + examples) |
+| `mutation.yml` | Mutation testing (mutmut) no domain |
 
 Rodar localmente (equivalente ao CI):
 
