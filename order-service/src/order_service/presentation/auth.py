@@ -1,12 +1,16 @@
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from order_service.infrastructure.config import settings
 from order_service.infrastructure.security.jwt import (
     create_dev_token,
     require_scopes,
 )
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=settings.app_env != "local",
+)
 
 require_orders_read = require_scopes("orders:read")
 require_orders_write = require_scopes("orders:write")

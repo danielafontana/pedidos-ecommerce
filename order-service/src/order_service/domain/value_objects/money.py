@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
+MONEY_QUANT = Decimal("0.01")
+
 
 @dataclass(frozen=True)
 class Money:
@@ -19,3 +21,7 @@ class Money:
     @classmethod
     def zero(cls, currency: str = "BRL") -> "Money":
         return cls(Decimal("0"), currency)
+
+    @staticmethod
+    def format_amount(amount: Decimal) -> str:
+        return f"{amount.quantize(MONEY_QUANT):.2f}"

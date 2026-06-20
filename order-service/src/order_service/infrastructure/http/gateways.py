@@ -68,7 +68,7 @@ class HttpCatalogGateway(CatalogGateway):
         return ProductInfo(
             id=data["id"],
             name=data["name"],
-            price=Decimal(str(data["price"])),
+            price=Decimal(str(data["price"])).quantize(Decimal("0.01")),
             available=data.get("available", True),
         )
 

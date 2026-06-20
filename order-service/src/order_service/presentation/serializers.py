@@ -1,5 +1,6 @@
 from order_service.domain.datetime_utils import format_datetime
 from order_service.domain.entities.order import Order, Payment
+from order_service.domain.value_objects.money import Money
 
 
 def order_to_dict(order: Order, payments: list[Payment] | None = None) -> dict:
@@ -12,13 +13,13 @@ def order_to_dict(order: Order, payments: list[Payment] | None = None) -> dict:
                 "id": str(item.id),
                 "product_id": item.product_id,
                 "quantity": item.quantity,
-                "unit_price": str(item.unit_price.amount)
+                "unit_price": Money.format_amount(item.unit_price.amount)
                 if item.unit_price
                 else None,
             }
             for item in order.items
         ],
-        "total_amount": str(order.total_amount.amount),
+        "total_amount": Money.format_amount(order.total_amount.amount),
         "currency": order.total_amount.currency,
         "payment_attempts": order.payment_attempts,
         "payments": [payment_to_dict(payment) for payment in (payments or [])],
@@ -33,7 +34,7 @@ def payment_to_dict(payment: Payment) -> dict:
     return {
         "id": str(payment.id),
         "order_id": str(payment.order_id),
-        "amount": str(payment.amount.amount),
+        "amount": Money.format_amount(payment.amount.amount),
         "currency": payment.amount.currency,
         "status": payment.status.value,
         "external_reference": payment.external_reference,
