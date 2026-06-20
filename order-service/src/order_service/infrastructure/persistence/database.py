@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from order_service.domain.datetime_utils import now
 from order_service.domain.ports.repositories import (
@@ -20,7 +21,11 @@ from order_service.infrastructure.persistence.models import (
     SagaInstanceModel,
 )
 
-engine = create_async_engine(settings.database_url, echo=False)
+engine_kwargs: dict = {"echo": False}
+if settings.app_env == "local":
+    engine_kwargs["poolclass"] = NullPool
+
+engine = create_async_engine(settings.database_url, **engine_kwargs)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 

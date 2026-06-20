@@ -20,7 +20,18 @@ from order_service.testing.paths import wiremock_mappings_dir
 WIREMOCK_MAPPINGS = wiremock_mappings_dir(Path(__file__))
 
 
+def _dispose_database_engine() -> None:
+    db_mod = sys.modules.get("order_service.infrastructure.persistence.database")
+    if db_mod is None:
+        return
+    engine = getattr(db_mod, "engine", None)
+    if engine is None:
+        return
+    engine.sync_engine.dispose()
+
+
 def _reload_infrastructure_modules() -> None:
+    _dispose_database_engine()
     module_names = [
         "order_service.infrastructure.config",
         "order_service.infrastructure.persistence.database",
@@ -87,12 +98,16 @@ def integration_env(docker_available: None) -> Iterator[dict[str, str]]:
 @pytest.fixture(scope="session", autouse=False)
 def stub_event_publisher(integration_env: dict[str, str]) -> Iterator[None]:
     import order_service.infrastructure.messaging.sqs_publisher as sqs_mod
+    import order_service.presentation.dependencies as deps_mod
 
     class NoOpEventPublisher:
         async def publish(self, event_type: str, payload: dict) -> None:
             return None
 
-    with patch.object(sqs_mod, "SqsEventPublisher", NoOpEventPublisher):
+    with (
+        patch.object(sqs_mod, "SqsEventPublisher", NoOpEventPublisher),
+        patch.object(deps_mod, "SqsEventPublisher", NoOpEventPublisher),
+    ):
         yield
 
 
